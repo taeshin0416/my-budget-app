@@ -12,17 +12,13 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const PIE_COLORS = ["#C17F4A", "#7A9E7E", "#C4856A", "#8FA8C8", "#B8956A", "#9B8EA0", "#7EA89B", "#C4A882"];
 
 const S = {
-  bg: "#FAF7F2",
-  card: "#F3EDE3",
-  border: "#E2D5C3",
-  text: "#3D2E1E",
-  muted: "#9A8470",
-  accent: "#C17F4A",
-  green: "#7A9E7E",
-  red: "#C4856A",
-  font: "'Fraunces', serif",
-  sans: "'Georgia', serif",
+  bg: "#FAF7F2", card: "#F3EDE3", border: "#E2D5C3",
+  text: "#3D2E1E", muted: "#9A8470", accent: "#C17F4A",
+  green: "#7A9E7E", red: "#C4856A",
+  font: "'Fraunces', serif", sans: "'Georgia', serif",
 };
+
+const fmt = (n) => Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
 export default function App() {
   const today = new Date();
@@ -48,8 +44,14 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState("calendar");
 
-  const monthKey = `${viewYear}-${viewMonth}`;
-  const transactions = allTransactions[monthKey] || [];
+  // 날짜 기반으로 monthKey 계산
+  function monthKeyFromDate(dateStr) {
+    const [y, m] = dateStr.split("-");
+    return `${parseInt(y)}-${parseInt(m) - 1}`;
+  }
+
+  const viewMonthKey = `${viewYear}-${viewMonth}`;
+  const transactions = allTransactions[viewMonthKey] || [];
 
   localStorage.setItem("transactions", JSON.stringify(allTransactions));
   localStorage.setItem("categories", JSON.stringify(categories));
@@ -67,19 +69,27 @@ export default function App() {
 
   function addTransaction() {
     if (!desc || !amount || !date) return alert("Please fill in all fields!");
+    const key = monthKeyFromDate(date);
     const newTx = { id: Date.now(), desc, amount: parseFloat(amount), category, type, date };
     setAllTransactions(prev => ({
       ...prev,
-      [monthKey]: [...(prev[monthKey] || []), newTx].sort((a, b) => a.date.localeCompare(b.date))
+      [key]: [...(prev[key] || []), newTx].sort((a, b) => a.date.localeCompare(b.date))
     }));
+    // 입력한 날짜의 월로 뷰 이동
+    const [y, m] = date.split("-");
+    setViewYear(parseInt(y));
+    setViewMonth(parseInt(m) - 1);
     setDesc(""); setAmount("");
   }
 
   function deleteTransaction(id) {
-    setAllTransactions(prev => ({
-      ...prev,
-      [monthKey]: prev[monthKey].filter(t => t.id !== id)
-    }));
+    setAllTransactions(prev => {
+      const updated = {};
+      for (const key in prev) {
+        updated[key] = prev[key].filter(t => t.id !== id);
+      }
+      return updated;
+    });
     setEditingTx(null);
   }
 
@@ -91,12 +101,20 @@ export default function App() {
 
   function saveEdit() {
     if (!desc || !amount || !date) return alert("Please fill in all fields!");
-    setAllTransactions(prev => ({
-      ...prev,
-      [monthKey]: prev[monthKey]
-        .map(t => t.id === editingTx ? { ...t, desc, amount: parseFloat(amount), date, type, category } : t)
-        .sort((a, b) => a.date.localeCompare(b.date))
-    }));
+    const newKey = monthKeyFromDate(date);
+    setAllTransactions(prev => {
+      const updated = {};
+      for (const key in prev) {
+        updated[key] = prev[key].filter(t => t.id !== editingTx);
+      }
+      updated[newKey] = [...(updated[newKey] || []),
+        { id: editingTx, desc, amount: parseFloat(amount), date, type, category }
+      ].sort((a, b) => a.date.localeCompare(b.date));
+      return updated;
+    });
+    const [y, m] = date.split("-");
+    setViewYear(parseInt(y));
+    setViewMonth(parseInt(m) - 1);
     setEditingTx(null);
     setDesc(""); setAmount(""); setDate(today.toISOString().split("T")[0]);
     setType("expense"); setCategory(categories["expense"][0]);
@@ -160,6 +178,7 @@ export default function App() {
   }
 
   function PieChart() {
+    const [selectedCat, setSelectedCat] = useState(null);
     const expenseTxs = transactions.filter(t => t.type === "expense");
     const total = expenseTxs.reduce((s, t) => s + t.amount, 0);
     if (total === 0) return <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font }}>No expense data this month</p>;
@@ -168,8 +187,7 @@ export default function App() {
     const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
     let cum = 0;
     const slices = entries.map(([cat, amt], i) => {
-      const pct = amt / total;
-      const start = cum; cum += pct;
+      const pct = amt / total; const start = cum; cum += pct;
       return { cat, amt, pct, start, color: PIE_COLORS[i % PIE_COLORS.length] };
     });
     function polar(cx, cy, r, angle) {
@@ -177,10 +195,10 @@ export default function App() {
       return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
     }
     function path(cx, cy, r, s, e) {
-      const sa = polar(cx, cy, r, s * 360);
-      const ea = polar(cx, cy, r, e * 360);
+      const sa = polar(cx, cy, r, s * 360); const ea = polar(cx, cy, r, e * 360);
       return `M ${cx} ${cy} L ${sa.x} ${sa.y} A ${r} ${r} 0 ${(e - s) > 0.5 ? 1 : 0} 1 ${ea.x} ${ea.y} Z`;
     }
+    const filteredTxs = selectedCat ? expenseTxs.filter(t => t.category === selectedCat) : [];
     return (
       <div>
         <svg viewBox="0 0 200 200" width="180" height="180" style={{ display: "block", margin: "0 auto 20px" }}>
@@ -188,17 +206,43 @@ export default function App() {
         </svg>
         <div>
           {slices.map((s, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${S.border}` }}>
+            <div key={i} onClick={() => setSelectedCat(selectedCat === s.cat ? null : s.cat)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "9px 12px", borderBottom: `1px solid ${S.border}`,
+                cursor: "pointer", borderRadius: 8,
+                background: selectedCat === s.cat ? S.card : "transparent",
+              }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontFamily: S.font, color: S.text }}>{s.cat}</span>
               </div>
               <span style={{ fontSize: 13, color: S.muted, fontFamily: S.sans }}>
-                ${s.amt.toLocaleString()} ({(s.pct * 100).toFixed(1)}%)
+                ${fmt(s.amt)} ({(s.pct * 100).toFixed(1)}%)
               </span>
             </div>
           ))}
         </div>
+
+        {selectedCat && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+              {selectedCat} transactions
+            </div>
+            {filteredTxs.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
+              <div key={t.id} style={{ padding: "12px 16px", marginBottom: 6, background: S.card, borderRadius: 10, border: `1px solid ${S.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>{formatDate(t.date)}</div>
+                    <div style={{ fontSize: 16, fontFamily: S.font, fontWeight: 400, color: S.red }}>
+                      −${fmt(t.amount)}
+                    </div>
+                    <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -232,14 +276,13 @@ export default function App() {
         {[["Income", income, S.green], ["Expenses", expense, S.red], ["Balance", income - expense, S.accent]].map(([label, val, color]) => (
           <div key={label} style={{ background: S.card, borderRadius: 12, padding: "14px 16px", textAlign: "center", border: `1px solid ${S.border}` }}>
             <div style={{ fontSize: 11, color: S.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6, fontFamily: S.sans }}>{label}</div>
-            <div style={{ fontSize: 20, fontFamily: S.font, fontWeight: 400, color }}>${val.toLocaleString()}</div>
+            <div style={{ fontSize: 20, fontFamily: S.font, fontWeight: 400, color }}>${fmt(val)}</div>
           </div>
         ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
 
-        {/* 왼쪽: 입력 폼 */}
         <div style={{ background: S.card, borderRadius: 14, padding: 18, border: `1px solid ${S.border}` }}>
           <div style={{ fontSize: 12, fontFamily: S.sans, color: S.muted, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase" }}>
             {isEditing ? "Edit transaction" : "Add transaction"}
@@ -260,7 +303,7 @@ export default function App() {
           <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
 
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Amount</div>
-          <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" type="number" style={inputStyle} />
+          <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" type="number" step="0.01" style={inputStyle} />
 
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Category</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
@@ -316,7 +359,6 @@ export default function App() {
           )}
         </div>
 
-        {/* 오른쪽 */}
         <div>
           <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
             {[["calendar", "Calendar"], ["list", "Transactions"], ["chart", "Chart"]].map(([tab, label]) => (
@@ -343,7 +385,7 @@ export default function App() {
                       <div>
                         <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.03em" }}>{formatDate(t.date)}</div>
                         <div style={{ fontSize: 20, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red, marginBottom: 3 }}>
-                          {t.type === "income" ? "+" : "−"}${t.amount.toLocaleString()}
+                          {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
                         </div>
                         <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
                       </div>
@@ -377,8 +419,8 @@ export default function App() {
                     }}>
                       <div style={{ fontSize: 12, fontFamily: S.font, fontWeight: isToday ? 400 : 300, color: isSelected ? S.bg : S.text, marginBottom: 2 }}>{day}</div>
                       {txs.length > 0 && (
-                        <div style={{ fontSize: 10, color: isSelected ? "#FAC775" : net >= 0 ? S.green : S.red, fontFamily: S.sans }}>
-                          {net >= 0 ? "+" : ""}${Math.abs(net).toLocaleString()}
+                        <div style={{ fontSize: 12, fontWeight: "bold", color: isSelected ? "#FAC775" : net >= 0 ? "#4A8C5C" : "#B85C3A", fontFamily: S.sans }}>
+                          {net >= 0 ? "+" : ""}${fmt(Math.abs(net))}
                         </div>
                       )}
                     </div>
@@ -398,7 +440,7 @@ export default function App() {
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
                             <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
-                              {t.type === "income" ? "+" : "−"}${t.amount.toLocaleString()}
+                              {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
                             </div>
                             <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
                           </div>
