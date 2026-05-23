@@ -44,7 +44,6 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState("calendar");
 
-  // 날짜 기반으로 monthKey 계산
   function monthKeyFromDate(dateStr) {
     const [y, m] = dateStr.split("-");
     return `${parseInt(y)}-${parseInt(m) - 1}`;
@@ -75,7 +74,6 @@ export default function App() {
       ...prev,
       [key]: [...(prev[key] || []), newTx].sort((a, b) => a.date.localeCompare(b.date))
     }));
-    // 입력한 날짜의 월로 뷰 이동
     const [y, m] = date.split("-");
     setViewYear(parseInt(y));
     setViewMonth(parseInt(m) - 1);
@@ -237,6 +235,10 @@ export default function App() {
                       −${fmt(t.amount)}
                     </div>
                     <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => { startEdit(t); setActiveTab("list"); }} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
+                    <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
                   </div>
                 </div>
               </div>
