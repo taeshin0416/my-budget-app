@@ -304,24 +304,24 @@ function PieChart() {
                   </div>
                 </div>
                ) : (
-  <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 520 }}>
-    <div style={{
-      flex: 1, padding: "9px 13px", borderRadius: 10,
-      background: S.card, border: `1px solid ${S.border}`,
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-    }}>
-      <div>
-        <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
-        <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 520 }}>
+      <div style={{
+        flex: 1, padding: "9px 13px", borderRadius: 10,
+        background: S.card, border: `1px solid ${S.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <div>
+          <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
+          <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
+        </div>
+        <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: S.red }}>
+          −${fmt(t.amount)}
+        </div>
       </div>
-      <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: S.red }}>
-        −${fmt(t.amount)}
-      </div>
+      <button onClick={() => startInlineEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
+      <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
     </div>
-    <button onClick={() => startInlineEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
-    <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
-  </div>
-)}
+  )}
   const isEditing = editingTx !== null;
   const calendarDays = getCalendarDays();
   const selectedTxs = selectedDate ? txForDay(selectedDate) : [];
