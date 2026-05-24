@@ -305,29 +305,25 @@ function PieChart() {
                 </div>
               ) : (
                 // ── 일반 카드 뷰 ──
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>{formatDate(t.date)}</div>
-                    <div style={{ fontSize: 16, fontFamily: S.font, fontWeight: 400, color: S.red }}>
-                      −${fmt(t.amount)}
-                    </div>
-                    <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => startInlineEdit(t)}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
-                    <button onClick={() => deleteTransaction(t.id)}
-                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+               ) : (
+  <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 520 }}>
+    <div style={{
+      flex: 1, padding: "9px 13px", borderRadius: 10,
+      background: S.card, border: `1px solid ${S.border}`,
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+    }}>
+      <div>
+        <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
+        <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
+      </div>
+      <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: S.red }}>
+        −${fmt(t.amount)}
+      </div>
     </div>
-  );
-}
+    <button onClick={() => startInlineEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
+    <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
+  </div>
+)}
   const isEditing = editingTx !== null;
   const calendarDays = getCalendarDays();
   const selectedTxs = selectedDate ? txForDay(selectedDate) : [];
@@ -453,33 +449,31 @@ function PieChart() {
           </div>
 
           {activeTab === "list" && (
+  <div>
+    {transactions.length === 0
+      ? <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>No transactions this month</p>
+      : [...transactions].reverse().map(t => (
+        <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, maxWidth: 520 }}>
+          <div style={{
+            flex: 1, padding: "9px 13px", borderRadius: 12,
+            background: editingTx === t.id ? "#F0E8DA" : S.card,
+            border: `1px solid ${editingTx === t.id ? S.accent : S.border}`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
             <div>
-              {transactions.length === 0
-                ? <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>No transactions this month</p>
-                : [...transactions].reverse().map(t => (
-                  <div key={t.id} style={{
-                    padding: "14px 18px", marginBottom: 8, borderRadius: 12,
-                    background: editingTx === t.id ? "#F0E8DA" : S.card,
-                    border: `1px solid ${editingTx === t.id ? S.accent : S.border}`,
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.03em" }}>{formatDate(t.date)}</div>
-                        <div style={{ fontSize: 20, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red, marginBottom: 3 }}>
-                          {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
-                        </div>
-                        <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => startEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
-                        <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
+              <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
             </div>
-          )}
-
+            <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
+              {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
+            </div>
+          </div>
+          <button onClick={() => startEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
+          <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
+        </div>
+      ))}
+  </div>
+)}
           {activeTab === "calendar" && (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
@@ -516,26 +510,24 @@ function PieChart() {
                   </div>
                   {selectedTxs.length === 0
                     ? <p style={{ color: S.muted, fontSize: 13, fontFamily: S.font, fontWeight: 300 }}>No transactions</p>
-                    : selectedTxs.map(t => (
-                      <div key={t.id} style={{ padding: "12px 16px", marginBottom: 6, background: S.card, borderRadius: 10, border: `1px solid ${S.border}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
-                              {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
-                            </div>
-                            <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => { startEdit(t); setActiveTab("list"); }} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
-                            <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          )}
+                    : : selectedTxs.map(t => (
+  <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, maxWidth: 520 }}>
+    <div style={{
+      flex: 1, padding: "9px 13px", borderRadius: 10,
+      background: S.card, border: `1px solid ${S.border}`,
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+    }}>
+      <div>
+        <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
+      </div>
+      <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
+        {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
+      </div>
+    </div>
+    <button onClick={() => { startEdit(t); setActiveTab("list"); }} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
+    <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
+  </div>
+))}
 
           {activeTab === "chart" && <PieChart />}
         </div>
