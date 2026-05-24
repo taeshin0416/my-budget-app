@@ -175,59 +175,136 @@ export default function App() {
          - txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   }
 
-  function PieChart() {
-    const [selectedCat, setSelectedCat] = useState(null);
-    const expenseTxs = transactions.filter(t => t.type === "expense");
-    const total = expenseTxs.reduce((s, t) => s + t.amount, 0);
-    if (total === 0) return <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font }}>No expense data this month</p>;
-    const catMap = {};
-    expenseTxs.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
-    const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-    let cum = 0;
-    const slices = entries.map(([cat, amt], i) => {
-      const pct = amt / total; const start = cum; cum += pct;
-      return { cat, amt, pct, start, color: PIE_COLORS[i % PIE_COLORS.length] };
-    });
-    function polar(cx, cy, r, angle) {
-      const rad = (angle - 90) * Math.PI / 180;
-      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
-    }
-    function path(cx, cy, r, s, e) {
-      const sa = polar(cx, cy, r, s * 360); const ea = polar(cx, cy, r, e * 360);
-      return `M ${cx} ${cy} L ${sa.x} ${sa.y} A ${r} ${r} 0 ${(e - s) > 0.5 ? 1 : 0} 1 ${ea.x} ${ea.y} Z`;
-    }
-    const filteredTxs = selectedCat ? expenseTxs.filter(t => t.category === selectedCat) : [];
-    return (
-      <div>
-        <svg viewBox="0 0 200 200" width="180" height="180" style={{ display: "block", margin: "0 auto 20px" }}>
-          {slices.map((s, i) => <path key={i} d={path(100, 100, 90, s.start, s.start + s.pct)} fill={s.color} stroke="#FAF7F2" strokeWidth="2" />)}
-        </svg>
-        <div>
-          {slices.map((s, i) => (
-            <div key={i} onClick={() => setSelectedCat(selectedCat === s.cat ? null : s.cat)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "9px 12px", borderBottom: `1px solid ${S.border}`,
-                cursor: "pointer", borderRadius: 8,
-                background: selectedCat === s.cat ? S.card : "transparent",
-              }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontFamily: S.font, color: S.text }}>{s.cat}</span>
-              </div>
-              <span style={{ fontSize: 13, color: S.muted, fontFamily: S.sans }}>
-                ${fmt(s.amt)} ({(s.pct * 100).toFixed(1)}%)
-              </span>
-            </div>
-          ))}
-        </div>
+function PieChart() {
+  const [selectedCat, setSelectedCat] = useState(null);
+  const [inlineEdit, setInlineEdit] = useState(null); // { id, desc, amount, date, type, category }
 
-        {selectedCat && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
-              {selectedCat} transactions
+  const expenseTxs = transactions.filter(t => t.type === "expense");
+  const total = expenseTxs.reduce((s, t) => s + t.amount, 0);
+  if (total === 0) return <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font }}>No expense data this month</p>;
+
+  const catMap = {};
+  expenseTxs.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
+  const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+  let cum = 0;
+  const slices = entries.map(([cat, amt], i) => {
+    const pct = amt / total; const start = cum; cum += pct;
+    return { cat, amt, pct, start, color: PIE_COLORS[i % PIE_COLORS.length] };
+  });
+
+  function polar(cx, cy, r, angle) {
+    const rad = (angle - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  function path(cx, cy, r, s, e) {
+    const sa = polar(cx, cy, r, s * 360); const ea = polar(cx, cy, r, e * 360);
+    return `M ${cx} ${cy} L ${sa.x} ${sa.y} A ${r} ${r} 0 ${(e - s) > 0.5 ? 1 : 0} 1 ${ea.x} ${ea.y} Z`;
+  }
+
+  function startInlineEdit(t) {
+    setInlineEdit({ id: t.id, desc: t.desc, amount: String(t.amount), date: t.date, type: t.type, category: t.category });
+  }
+
+  function saveInlineEdit() {
+    const { id, desc, amount, date, type, category } = inlineEdit;
+    if (!desc || !amount || !date) return alert("Please fill in all fields!");
+    const newKey = `${parseInt(date.split("-")[0])}-${parseInt(date.split("-")[1]) - 1}`;
+    setAllTransactions(prev => {
+      const updated = {};
+      for (const key in prev) {
+        updated[key] = prev[key].filter(t => t.id !== id);
+      }
+      updated[newKey] = [...(updated[newKey] || []),
+        { id, desc, amount: parseFloat(amount), date, type, category }
+      ].sort((a, b) => a.date.localeCompare(b.date));
+      return updated;
+    });
+    setInlineEdit(null);
+  }
+
+  const inlineInputStyle = {
+    width: "100%", padding: "7px 10px", borderRadius: 7,
+    border: `1px solid ${S.border}`, marginBottom: 6,
+    boxSizing: "border-box", background: S.bg,
+    color: S.text, fontFamily: S.sans, fontSize: 12,
+  };
+
+  const filteredTxs = selectedCat ? expenseTxs.filter(t => t.category === selectedCat) : [];
+
+  return (
+    <div>
+      <svg viewBox="0 0 200 200" width="180" height="180" style={{ display: "block", margin: "0 auto 20px" }}>
+        {slices.map((s, i) => (
+          <path key={i} d={path(100, 100, 90, s.start, s.start + s.pct)}
+            fill={s.color} stroke="#FAF7F2" strokeWidth="2" />
+        ))}
+      </svg>
+
+      <div>
+        {slices.map((s, i) => (
+          <div key={i} onClick={() => { setSelectedCat(selectedCat === s.cat ? null : s.cat); setInlineEdit(null); }}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "9px 12px", borderBottom: `1px solid ${S.border}`,
+              cursor: "pointer", borderRadius: 8,
+              background: selectedCat === s.cat ? S.card : "transparent",
+            }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontFamily: S.font, color: S.text }}>{s.cat}</span>
             </div>
-            {filteredTxs.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
-              <div key={t.id} style={{ padding: "12px 16px", marginBottom: 6, background: S.card, borderRadius: 10, border: `1px solid ${S.border}` }}>
+            <span style={{ fontSize: 13, color: S.muted, fontFamily: S.sans }}>
+              ${fmt(s.amt)} ({(s.pct * 100).toFixed(1)}%)
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {selectedCat && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
+            {selectedCat} transactions
+          </div>
+          {filteredTxs.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
+            <div key={t.id} style={{ padding: "12px 16px", marginBottom: 6, background: S.card, borderRadius: 10, border: `1px solid ${inlineEdit?.id === t.id ? S.accent : S.border}` }}>
+              {inlineEdit?.id === t.id ? (
+                // ── 인라인 수정 폼 ──
+                <div>
+                  <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>Date</div>
+                  <input type="date" value={inlineEdit.date}
+                    onChange={e => setInlineEdit(p => ({ ...p, date: e.target.value }))}
+                    style={inlineInputStyle} />
+
+                  <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>Amount</div>
+                  <input type="number" step="0.01" value={inlineEdit.amount}
+                    onChange={e => setInlineEdit(p => ({ ...p, amount: e.target.value }))}
+                    style={inlineInputStyle} />
+
+                  <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>Category</div>
+                  <select value={inlineEdit.category}
+                    onChange={e => setInlineEdit(p => ({ ...p, category: e.target.value }))}
+                    style={inlineInputStyle}>
+                    {categories["expense"].map(c => <option key={c}>{c}</option>)}
+                  </select>
+
+                  <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>Description</div>
+                  <input value={inlineEdit.desc}
+                    onChange={e => setInlineEdit(p => ({ ...p, desc: e.target.value }))}
+                    style={inlineInputStyle} />
+
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    <button onClick={() => setInlineEdit(null)}
+                      style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: `1px solid ${S.border}`, background: S.bg, color: S.muted, fontFamily: S.font, cursor: "pointer", fontSize: 13 }}>
+                      취소
+                    </button>
+                    <button onClick={saveInlineEdit}
+                      style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "none", background: S.accent, color: "white", fontFamily: S.font, cursor: "pointer", fontSize: 13 }}>
+                      저장
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // ── 일반 카드 뷰 ──
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>{formatDate(t.date)}</div>
@@ -237,18 +314,20 @@ export default function App() {
                     <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { startEdit(t); setActiveTab("list"); }} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
-                    <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
+                    <button onClick={() => startInlineEdit(t)}
+                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.muted }}>✎</button>
+                    <button onClick={() => deleteTransaction(t.id)}
+                      style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 12, color: S.red }}>✕</button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
   const isEditing = editingTx !== null;
   const calendarDays = getCalendarDays();
   const selectedTxs = selectedDate ? txForDay(selectedDate) : [];
