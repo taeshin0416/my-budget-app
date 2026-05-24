@@ -303,8 +303,6 @@ function PieChart() {
                     </button>
                   </div>
                 </div>
-              ) : (
-                // ── 일반 카드 뷰 ──
                ) : (
   <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 520 }}>
     <div style={{
