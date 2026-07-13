@@ -1,26 +1,25 @@
-
 import { useState, useMemo } from "react";
- 
+
 const DEFAULT_CATEGORIES = {
   expense: ["Groceries", "Transport", "Dining", "Subscriptions", "Other"],
   income: ["Salary", "Side Income", "Allowance", "Refund", "Other"],
 };
- 
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
- 
+
 const PIE_COLORS = ["#C17F4A", "#7A9E7E", "#C4856A", "#8FA8C8", "#B8956A", "#9B8EA0", "#7EA89B", "#C4A882"];
- 
+
 const S = {
   bg: "#FAF7F2", card: "#F3EDE3", border: "#E2D5C3",
   text: "#3D2E1E", muted: "#9A8470", accent: "#C17F4A",
   green: "#7A9E7E", red: "#C4856A",
   font: "'Fraunces', serif", sans: "'Georgia', serif",
 };
- 
+
 const fmt = (n) => Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
- 
+
 export default function App() {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -44,14 +43,18 @@ export default function App() {
   const [editingTx, setEditingTx] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState("calendar");
- 
+  const [txFilter, setTxFilter] = useState("all");
+  const [chartType, setChartType] = useState("expense");
+
   const [rangeMode, setRangeMode] = useState(false);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [appliedStart, setAppliedStart] = useState("");
   const [appliedEnd, setAppliedEnd] = useState("");
   const [rangeTab, setRangeTab] = useState("list");
- 
+  const [rangeTxFilter, setRangeTxFilter] = useState("all");
+  const [rangeChartType, setRangeChartType] = useState("expense");
+
   function toggleRangeMode() {
     if (rangeMode) {
       setRangeMode(false);
@@ -63,47 +66,46 @@ export default function App() {
       setActiveTab("list");
     }
   }
- 
+
   function applyRange() {
-    if (!rangeStart || !rangeEnd) return alert("시작일과 종료일을 모두 입력해주세요!");
-    if (rangeStart > rangeEnd) return alert("시작일이 종료일보다 늦을 수 없어요!");
+    if (!rangeStart || !rangeEnd) return alert("Please enter both a start and end date!");
+    if (rangeStart > rangeEnd) return alert("Start date cannot be later than end date!");
     setAppliedStart(rangeStart);
     setAppliedEnd(rangeEnd);
   }
- 
+
   const rangeTransactions = useMemo(() => {
     if (!appliedStart || !appliedEnd) return [];
     const all = Object.values(allTransactions).flat();
     return all.filter(t => t.date >= appliedStart && t.date <= appliedEnd)
               .sort((a, b) => b.date.localeCompare(a.date));
   }, [allTransactions, appliedStart, appliedEnd]);
- 
+
   function formatRangeLabel() {
     if (!appliedStart || !appliedEnd) return "";
     const s = new Date(appliedStart + "T00:00:00");
     const e = new Date(appliedEnd + "T00:00:00");
-    const diffMs = e - s;
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    const diffDays = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
     const fmt2 = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-    let duration = `${diffDays}일`;
+    let duration = `${diffDays} days`;
     if (diffDays >= 28) {
       const months = Math.round(diffDays / 30);
-      if (months >= 1) duration = `약 ${months}개월`;
+      if (months >= 1) duration = `~${months} month${months > 1 ? "s" : ""}`;
     }
     return `${fmt2(s)} – ${fmt2(e)} · ${duration}`;
   }
- 
+
   function monthKeyFromDate(dateStr) {
     const [y, m] = dateStr.split("-");
     return `${parseInt(y)}-${parseInt(m) - 1}`;
   }
- 
+
   const viewMonthKey = `${viewYear}-${viewMonth}`;
   const transactions = allTransactions[viewMonthKey] || [];
- 
+
   localStorage.setItem("transactions", JSON.stringify(allTransactions));
   localStorage.setItem("categories", JSON.stringify(categories));
- 
+
   function changeMonth(dir) {
     let m = viewMonth + dir;
     let y = viewYear;
@@ -111,11 +113,11 @@ export default function App() {
     if (m > 11) { m = 0; y++; }
     setViewMonth(m); setViewYear(y); setSelectedDate(null);
   }
- 
+
   const activeTxs = rangeMode && appliedStart ? rangeTransactions : transactions;
   const income = activeTxs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const expense = activeTxs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
- 
+
   function addTransaction() {
     if (!desc || !amount || !date) return alert("Please fill in all fields!");
     const key = monthKeyFromDate(date);
@@ -129,7 +131,7 @@ export default function App() {
     setViewMonth(parseInt(m) - 1);
     setDesc(""); setAmount("");
   }
- 
+
   function deleteTransaction(id) {
     setAllTransactions(prev => {
       const updated = {};
@@ -140,13 +142,13 @@ export default function App() {
     });
     setEditingTx(null);
   }
- 
+
   function startEdit(tx) {
     setEditingTx(tx.id);
     setDesc(tx.desc); setAmount(String(tx.amount));
     setDate(tx.date); setType(tx.type); setCategory(tx.category);
   }
- 
+
   function saveEdit() {
     if (!desc || !amount || !date) return alert("Please fill in all fields!");
     const newKey = monthKeyFromDate(date);
@@ -167,13 +169,13 @@ export default function App() {
     setDesc(""); setAmount(""); setDate(today.toISOString().split("T")[0]);
     setType("expense"); setCategory(categories["expense"][0]);
   }
- 
+
   function cancelEdit() {
     setEditingTx(null);
     setDesc(""); setAmount(""); setDate(today.toISOString().split("T")[0]);
     setType("expense"); setCategory(categories["expense"][0]);
   }
- 
+
   function addCategory() {
     const trimmed = newCat.trim();
     if (!trimmed) return;
@@ -181,13 +183,13 @@ export default function App() {
     setCategories(prev => ({ ...prev, [type]: [trimmed, ...prev[type]] }));
     setCategory(trimmed); setNewCat("");
   }
- 
+
   function deleteCategory(cat) {
     if (categories[type].length <= 1) return alert("At least one category is required!");
     setCategories(prev => ({ ...prev, [type]: prev[type].filter(c => c !== cat) }));
     if (category === cat) setCategory(categories[type].filter(c => c !== cat)[0]);
   }
- 
+
   function onDragStart(i) { setDragIndex(i); }
   function onDragOver(e, i) {
     e.preventDefault();
@@ -199,12 +201,12 @@ export default function App() {
     setDragIndex(i);
   }
   function onDragEnd() { setDragIndex(null); }
- 
+
   function formatDate(d) {
     const [y, m, day] = d.split("-");
     return `${MONTHS[parseInt(m) - 1]} ${parseInt(day)}, ${y}`;
   }
- 
+
   function getCalendarDays() {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -213,57 +215,101 @@ export default function App() {
     for (let i = 1; i <= daysInMonth; i++) days.push(i);
     return days;
   }
- 
+
   function txForDay(day) {
     const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     return transactions.filter(t => t.date === dateStr);
   }
- 
+
   function dayNet(day) {
     const txs = txForDay(day);
     return txs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0)
          - txs.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   }
- 
-  function PieChart({ txList }) {
+
+  const filterBtnStyle = (active) => ({
+    padding: "5px 14px", borderRadius: 20, border: `1px solid ${S.border}`, cursor: "pointer",
+    background: active ? S.text : S.bg,
+    color: active ? S.bg : S.muted,
+    fontFamily: S.font, fontWeight: 300, fontSize: 12,
+  });
+
+  function TxList({ txList, onEdit }) {
+    const filtered = txList.filter(t => txFilter === "all" || t.type === txFilter);
+    if (filtered.length === 0)
+      return <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>No transactions</p>;
+    return filtered.map(t => (
+      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, maxWidth: 520 }}>
+        <div style={{
+          flex: 1, padding: "9px 13px", borderRadius: 12,
+          background: editingTx === t.id ? "#F0E8DA" : S.card,
+          border: `1px solid ${editingTx === t.id ? S.accent : S.border}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <div>
+            <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
+            <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
+          </div>
+          <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
+            {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
+          </div>
+        </div>
+        <button onClick={() => onEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
+        <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
+      </div>
+    ));
+  }
+
+  function PieChart({ txList, chartTypeState, setChartTypeState }) {
     const [selectedCat, setSelectedCat] = useState(null);
     const [inlineEdit, setInlineEdit] = useState(null);
- 
-    const expenseTxs = txList.filter(t => t.type === "expense");
-    const total = expenseTxs.reduce((s, t) => s + t.amount, 0);
-    if (total === 0) return <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font }}>No expense data</p>;
- 
+
+    const filteredTxs = txList.filter(t => t.type === chartTypeState);
+    const total = filteredTxs.reduce((s, t) => s + t.amount, 0);
+
+    if (total === 0) return (
+      <div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+          {["expense", "income"].map(ct => (
+            <button key={ct} onClick={() => { setChartTypeState(ct); setSelectedCat(null); }}
+              style={filterBtnStyle(chartTypeState === ct)}>
+              {ct === "expense" ? "Expense" : "Income"}
+            </button>
+          ))}
+        </div>
+        <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font }}>No data</p>
+      </div>
+    );
+
     const catMap = {};
-    expenseTxs.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
+    filteredTxs.forEach(t => { catMap[t.category] = (catMap[t.category] || 0) + t.amount; });
     const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
     let cum = 0;
     const slices = entries.map(([cat, amt], i) => {
       const pct = amt / total; const start = cum; cum += pct;
       return { cat, amt, pct, start, color: PIE_COLORS[i % PIE_COLORS.length] };
     });
- 
+
     function polar(cx, cy, r, angle) {
       const rad = (angle - 90) * Math.PI / 180;
       return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
     }
-    function path(cx, cy, r, s, e) {
+    function pathD(cx, cy, r, s, e) {
       const sa = polar(cx, cy, r, s * 360); const ea = polar(cx, cy, r, e * 360);
       return `M ${cx} ${cy} L ${sa.x} ${sa.y} A ${r} ${r} 0 ${(e - s) > 0.5 ? 1 : 0} 1 ${ea.x} ${ea.y} Z`;
     }
- 
+
     function startInlineEdit(t) {
       setInlineEdit({ id: t.id, desc: t.desc, amount: String(t.amount), date: t.date, type: t.type, category: t.category });
     }
- 
+
     function saveInlineEdit() {
       const { id, desc, amount, date, type, category } = inlineEdit;
       if (!desc || !amount || !date) return alert("Please fill in all fields!");
       const newKey = `${parseInt(date.split("-")[0])}-${parseInt(date.split("-")[1]) - 1}`;
       setAllTransactions(prev => {
         const updated = {};
-        for (const key in prev) {
-          updated[key] = prev[key].filter(t => t.id !== id);
-        }
+        for (const key in prev) { updated[key] = prev[key].filter(t => t.id !== id); }
         updated[newKey] = [...(updated[newKey] || []),
           { id, desc, amount: parseFloat(amount), date, type, category }
         ].sort((a, b) => a.date.localeCompare(b.date));
@@ -271,24 +317,36 @@ export default function App() {
       });
       setInlineEdit(null);
     }
- 
+
     const inlineInputStyle = {
       width: "100%", padding: "7px 10px", borderRadius: 7,
       border: `1px solid ${S.border}`, marginBottom: 6,
       boxSizing: "border-box", background: S.bg,
       color: S.text, fontFamily: S.sans, fontSize: 12,
     };
- 
-    const filteredTxs = selectedCat ? expenseTxs.filter(t => t.category === selectedCat) : [];
- 
+
+    const catTxs = selectedCat ? filteredTxs.filter(t => t.category === selectedCat) : [];
+    const amtColor = chartTypeState === "expense" ? S.red : S.green;
+    const amtSign = chartTypeState === "expense" ? "−" : "+";
+
     return (
       <div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+          {["expense", "income"].map(ct => (
+            <button key={ct} onClick={() => { setChartTypeState(ct); setSelectedCat(null); setInlineEdit(null); }}
+              style={filterBtnStyle(chartTypeState === ct)}>
+              {ct === "expense" ? "Expense" : "Income"}
+            </button>
+          ))}
+        </div>
+
         <svg viewBox="0 0 200 200" width="180" height="180" style={{ display: "block", margin: "0 auto 20px" }}>
           {slices.map((s, i) => (
-            <path key={i} d={path(100, 100, 90, s.start, s.start + s.pct)}
+            <path key={i} d={pathD(100, 100, 90, s.start, s.start + s.pct)}
               fill={s.color} stroke="#FAF7F2" strokeWidth="2" />
           ))}
         </svg>
+
         <div>
           {slices.map((s, i) => (
             <div key={i} onClick={() => { setSelectedCat(selectedCat === s.cat ? null : s.cat); setInlineEdit(null); }}
@@ -308,12 +366,13 @@ export default function App() {
             </div>
           ))}
         </div>
+
         {selectedCat && (
           <div style={{ marginTop: 16 }}>
             <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 }}>
               {selectedCat} transactions
             </div>
-            {filteredTxs.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
+            {catTxs.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
               <div key={t.id} style={{ marginBottom: 6 }}>
                 {inlineEdit?.id === t.id ? (
                   <div style={{ padding: "12px 16px", background: S.card, borderRadius: 10, border: `1px solid ${S.accent}` }}>
@@ -329,7 +388,7 @@ export default function App() {
                     <select value={inlineEdit.category}
                       onChange={e => setInlineEdit(p => ({ ...p, category: e.target.value }))}
                       style={inlineInputStyle}>
-                      {categories["expense"].map(c => <option key={c}>{c}</option>)}
+                      {categories[chartTypeState].map(c => <option key={c}>{c}</option>)}
                     </select>
                     <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans }}>Description</div>
                     <input value={inlineEdit.desc}
@@ -338,11 +397,11 @@ export default function App() {
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                       <button onClick={() => setInlineEdit(null)}
                         style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: `1px solid ${S.border}`, background: S.bg, color: S.muted, fontFamily: S.font, cursor: "pointer", fontSize: 13 }}>
-                        취소
+                        Cancel
                       </button>
                       <button onClick={saveInlineEdit}
                         style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "none", background: S.accent, color: "white", fontFamily: S.font, cursor: "pointer", fontSize: 13 }}>
-                        저장
+                        Save
                       </button>
                     </div>
                   </div>
@@ -357,8 +416,8 @@ export default function App() {
                         <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
                         <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.desc}</div>
                       </div>
-                      <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: S.red }}>
-                        −${fmt(t.amount)}
+                      <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: amtColor }}>
+                        {amtSign}${fmt(t.amount)}
                       </div>
                     </div>
                     <button onClick={() => startInlineEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
@@ -372,26 +431,26 @@ export default function App() {
       </div>
     );
   }
- 
+
   const isEditing = editingTx !== null;
   const calendarDays = getCalendarDays();
   const selectedTxs = selectedDate ? txForDay(selectedDate) : [];
- 
+
   const inputStyle = {
     width: "100%", padding: "9px 12px", borderRadius: 8,
     border: `1px solid ${S.border}`, marginBottom: 8,
     boxSizing: "border-box", background: S.bg,
     color: S.text, fontFamily: S.sans, fontSize: 13,
   };
- 
+
   return (
     <div style={{ fontFamily: S.font, padding: 28, maxWidth: 1100, margin: "0 auto", background: S.bg, minHeight: "100vh" }}>
       <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;400;500&display=swap" rel="stylesheet" />
- 
+
       <h2 style={{ textAlign: "center", marginBottom: 4, fontFamily: S.font, fontSize: 32, fontWeight: 300, color: S.text, letterSpacing: "-0.5px" }}>
         My Budget
       </h2>
- 
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         {!rangeMode && (
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -406,10 +465,10 @@ export default function App() {
           color: rangeMode ? S.bg : S.muted,
           fontFamily: S.font, fontWeight: 300, fontSize: 13,
         }}>
-          {rangeMode ? "← 월별 보기로 돌아가기" : "기간 설정"}
+          {rangeMode ? "← Back to Monthly View" : "Date Range"}
         </button>
       </div>
- 
+
       {rangeMode && (
         <div style={{
           display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap",
@@ -417,13 +476,13 @@ export default function App() {
           padding: "14px 18px", marginBottom: 20,
         }}>
           <div>
-            <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.04em" }}>시작일</div>
+            <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.04em" }}>Start Date</div>
             <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)}
               style={{ ...inputStyle, marginBottom: 0, width: 160 }} />
           </div>
           <span style={{ color: S.muted, fontSize: 16, paddingBottom: 8 }}>→</span>
           <div>
-            <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.04em" }}>종료일</div>
+            <div style={{ fontSize: 11, color: S.muted, marginBottom: 4, fontFamily: S.sans, letterSpacing: "0.04em" }}>End Date</div>
             <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)}
               style={{ ...inputStyle, marginBottom: 0, width: 160 }} />
           </div>
@@ -431,16 +490,16 @@ export default function App() {
             padding: "9px 20px", borderRadius: 8, border: "none",
             background: S.accent, color: "white",
             fontFamily: S.font, fontWeight: 300, fontSize: 14, cursor: "pointer",
-          }}>적용</button>
+          }}>Apply</button>
         </div>
       )}
- 
+
       {rangeMode && appliedStart && (
         <p style={{ fontSize: 12, color: S.muted, fontFamily: S.sans, fontStyle: "italic", marginBottom: 16, marginTop: -8 }}>
           {formatRangeLabel()}
         </p>
       )}
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 28 }}>
         {[["Income", income, S.green], ["Expenses", expense, S.red], ["Balance", income - expense, S.accent]].map(([label, val, color]) => (
           <div key={label} style={{ background: S.card, borderRadius: 12, padding: "14px 16px", textAlign: "center", border: `1px solid ${S.border}` }}>
@@ -449,14 +508,14 @@ export default function App() {
           </div>
         ))}
       </div>
- 
+
       <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
- 
+
         <div style={{ background: S.card, borderRadius: 14, padding: 18, border: `1px solid ${S.border}` }}>
           <div style={{ fontSize: 12, fontFamily: S.sans, color: S.muted, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase" }}>
             {isEditing ? "Edit transaction" : "Add transaction"}
           </div>
- 
+
           <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
             {["expense", "income"].map(t => (
               <button key={t} onClick={() => { setType(t); setCategory(categories[t][0]); setManagingCat(false); }} style={{
@@ -467,13 +526,13 @@ export default function App() {
               }}>{t === "expense" ? "Expense" : "Income"}</button>
             ))}
           </div>
- 
+
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Date</div>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
- 
+
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Amount</div>
           <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" type="number" step="0.01" style={inputStyle} />
- 
+
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Category</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             <select value={category} onChange={e => setCategory(e.target.value)}
@@ -486,7 +545,7 @@ export default function App() {
               cursor: "pointer", fontFamily: S.sans, fontSize: 13,
             }}>✎</button>
           </div>
- 
+
           {managingCat && (
             <div style={{ background: S.bg, borderRadius: 10, padding: 12, marginBottom: 8, border: `1px solid ${S.border}` }}>
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
@@ -512,10 +571,10 @@ export default function App() {
               ))}
             </div>
           )}
- 
+
           <div style={{ fontSize: 11, color: S.muted, marginBottom: 3, fontFamily: S.sans, letterSpacing: "0.04em" }}>Description</div>
           <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. T&T Supermarket" style={inputStyle} />
- 
+
           {isEditing ? (
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={cancelEdit} style={{ flex: 1, padding: 11, borderRadius: 8, border: `1px solid ${S.border}`, background: S.bg, color: S.muted, fontFamily: S.font, fontWeight: 300, cursor: "pointer" }}>Cancel</button>
@@ -527,7 +586,7 @@ export default function App() {
             </button>
           )}
         </div>
- 
+
         <div>
           {rangeMode ? (
             <div>
@@ -541,18 +600,23 @@ export default function App() {
                   }}>{label}</button>
                 ))}
               </div>
- 
+
               {!appliedStart && (
                 <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>
-                  시작일과 종료일을 입력하고 적용을 눌러주세요
+                  Enter a start and end date, then click Apply.
                 </p>
               )}
- 
+
               {appliedStart && rangeTab === "list" && (
                 <div>
-                  {rangeTransactions.length === 0
-                    ? <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>해당 기간에 거래내역이 없어요</p>
-                    : rangeTransactions.map(t => (
+                  <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                    {[["all", "All"], ["expense", "Expense"], ["income", "Income"]].map(([val, label]) => (
+                      <button key={val} onClick={() => setRangeTxFilter(val)} style={filterBtnStyle(rangeTxFilter === val)}>{label}</button>
+                    ))}
+                  </div>
+                  {rangeTransactions.filter(t => rangeTxFilter === "all" || t.type === rangeTxFilter).length === 0
+                    ? <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>No transactions found</p>
+                    : rangeTransactions.filter(t => rangeTxFilter === "all" || t.type === rangeTxFilter).map(t => (
                       <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, maxWidth: 520 }}>
                         <div style={{
                           flex: 1, padding: "9px 13px", borderRadius: 12,
@@ -573,8 +637,10 @@ export default function App() {
                     ))}
                 </div>
               )}
- 
-              {appliedStart && rangeTab === "chart" && <PieChart txList={rangeTransactions} />}
+
+              {appliedStart && rangeTab === "chart" && (
+                <PieChart txList={rangeTransactions} chartTypeState={rangeChartType} setChartTypeState={setRangeChartType} />
+              )}
             </div>
           ) : (
             <div>
@@ -588,34 +654,18 @@ export default function App() {
                   }}>{label}</button>
                 ))}
               </div>
- 
+
               {activeTab === "list" && (
                 <div>
-                  {transactions.length === 0
-                    ? <p style={{ textAlign: "center", color: S.muted, marginTop: 40, fontFamily: S.font, fontWeight: 300 }}>No transactions this month</p>
-                    : [...transactions].reverse().map(t => (
-                      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, maxWidth: 520 }}>
-                        <div style={{
-                          flex: 1, padding: "9px 13px", borderRadius: 12,
-                          background: editingTx === t.id ? "#F0E8DA" : S.card,
-                          border: `1px solid ${editingTx === t.id ? S.accent : S.border}`,
-                          display: "flex", justifyContent: "space-between", alignItems: "center",
-                        }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: S.muted, marginBottom: 2, fontFamily: S.sans }}>{formatDate(t.date)}</div>
-                            <div style={{ fontSize: 12, color: S.muted, fontFamily: S.sans }}>{t.category} · {t.desc}</div>
-                          </div>
-                          <div style={{ fontSize: 17, fontFamily: S.font, fontWeight: 400, color: t.type === "income" ? S.green : S.red }}>
-                            {t.type === "income" ? "+" : "−"}${fmt(t.amount)}
-                          </div>
-                        </div>
-                        <button onClick={() => startEdit(t)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.muted, flexShrink: 0 }}>✎</button>
-                        <button onClick={() => deleteTransaction(t.id)} style={{ background: "none", border: `1px solid ${S.border}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", fontSize: 12, color: S.red, flexShrink: 0 }}>✕</button>
-                      </div>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                    {[["all", "All"], ["expense", "Expense"], ["income", "Income"]].map(([val, label]) => (
+                      <button key={val} onClick={() => setTxFilter(val)} style={filterBtnStyle(txFilter === val)}>{label}</button>
                     ))}
+                  </div>
+                  <TxList txList={[...transactions].reverse()} onEdit={startEdit} />
                 </div>
               )}
- 
+
               {activeTab === "calendar" && (
                 <div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
@@ -673,8 +723,10 @@ export default function App() {
                   )}
                 </div>
               )}
- 
-              {activeTab === "chart" && <PieChart txList={transactions} />}
+
+              {activeTab === "chart" && (
+                <PieChart txList={transactions} chartTypeState={chartType} setChartTypeState={setChartType} />
+              )}
             </div>
           )}
         </div>
@@ -682,4 +734,3 @@ export default function App() {
     </div>
   );
 }
- 
